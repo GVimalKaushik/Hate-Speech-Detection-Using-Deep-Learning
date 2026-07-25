@@ -1,0 +1,59 @@
+import re
+import unicodedata
+import regex as reg
+class TextPreprocessingLayer:
+    def __init__(self):
+        self.slang_dict = {
+            "u": "you",
+            "ur": "your",
+            "lol": "laughing out loud",
+            "omg": "oh my god",
+            "idk": "i do not know",
+            "wtf": "what the fuck",
+            "bc": "because",
+            "btw": "by the way",
+            "imo": "in my opinion",
+            "r": "are",
+            "n": "and"
+        }
+        self.script_patterns = {
+            "Latin": reg.compile(r"\p{Latin}"),
+            "Devanagari": reg.compile(r"\p{Devanagari}"),
+            "Arabic": reg.compile(r"\p{Arabic}"),
+            "Cyrillic": reg.compile(r"\p{Cyrillic}"),
+            "Han": reg.compile(r"\p{Han}")
+        }
+    def identify_script(self, text):
+        script_count = {}
+        for script, pattern in self.script_patterns.items():
+            script_count[script] = len(pattern.findall(text))
+        detected_scripts = [s for s, count in script_count.items() if count > 0]
+        if len(detected_scripts) > 1:
+            return "Mixed"
+        elif len(detected_scripts) == 1:
+            return detected_scripts[0]
+        else:
+            return "Unknown"
+    def normalize_text(self, text, script):
+        text = unicodedata.normalize("NFKC", text)
+        text = re.sub(r"http\S+|www\S+", "", text)
+        text = re.sub(r"@\w+|#\w+", "", text)
+        text = reg.sub(r"(.)\1{2,}", r"\1\1", text)
+        if script in ["Latin", "Mixed"]:
+            text = re.sub(r"[^a-zA-Z0-9\s]", " ", text)
+            text = text.lower()
+        else:
+            text = reg.sub(r"[^\p{L}\p{M}\s]", " ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        return text
+    def remove_slang(self, text):
+        words = text.split()
+        expanded_words = []
+        for word in words:
+            expanded_words.append(self.slang_dict.get(word, word))
+        return " ".join(expanded_words)
+    def preprocess(self, raw_text):
+        script = self.identify_script(raw_text)
+        normalized_text = self.normalize_text(raw_text, script)
+        clean_text = self.remove_slang(normalized_text)
+        return clean_text
